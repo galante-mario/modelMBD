@@ -9,9 +9,6 @@ default = {
             'mode':'chain',         # type of short range interactions
             'reptype':'expharm',    # exp repulsion for harmonic bonds
             'bond_list':'chain',    # chain bonds
-            'mtd_refs':[],          # no mtd reference conformations
-            'mtd_k':1e-3,           # standard mtd pushing strength 
-            'mtd_alpha':0.1         # standard width of mtd bias potential
           }
 
 class Hsr:
@@ -19,9 +16,6 @@ class Hsr:
     valid_args = ['reptype',\
                   'mode',\
                   'bond_list',\
-                  'mtd_refs',\
-                  'mtd_k',\
-                  'mtd_alpha',
                  ]
 
     vaild_modes = ['chain', 'ring', 'graphene', 'cluster']
@@ -124,17 +118,8 @@ class Hsr:
         else:
             raise NotImplementedError('reptype ' + self.reptype + ' unknown')
 
-        # mtd bias
 
-        if self.mtd_refs:
-            Ebias = 0.
-        else:
-            from utils.rmsd import rmsd_qcp as rmsd
-            delta = np.array([rmsd(pos, ref) for ref in self.mtd_refs])         
-            Ebias = self.mtd_k*np.sum( np.exp(-self.mtd_alpha*delta**2))
-#            dref = np.array([self.pos.flatten() - ref.flatten for ref in self.mtd_refs])
-
-        return Eb + Erep + Ebias
+        return Eb + Erep
 
     def force(self, pos):
 
@@ -202,11 +187,7 @@ class Hsr:
                 Fr[nobonds[pair,1]] -= fij[pair]*Rij[pair,:]
 
 
-        if self.mtd_refs:
-            from utils.rmsd import rmsd_qcp as rmsd
-            raise NotImplementedError('metadynamics not yet implemented')
-
-        return Fb + Fr #+ Fmtd
+        return Fb + Fr
      
 
 
