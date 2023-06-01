@@ -139,11 +139,50 @@ class vdWclass:
         else:
             return out[0]*Hartree, out[1], out[2]
 
-    def _get_forces(self, calc):
+    def _atom_resolvedMBDforces(self):
+
+        Nat = len(self.pos)
+        hi = 1e-3
+        h = np.zeros((2, Nat*3,Nat,3))
+        for i in range(Nat):
+            for j in range(3):
+                h[0,i*3+j,i,j] += hi
+                h[1,i*3+j,i,j] -= hi 
+        posl = np.concatenate([[self.pos] for i in range(Nat*3)])
+        Es = np.zeros((2, 3*Nat))
+        eigs = np.zeros((2, 3*Nat, 3*Nat))
+        chis = np.zeros((2, 3*Nat, 3*Nat, 3*Nat))
+        for i in range(3*Nat):
+            for s in [0,1]:
+                calc = self.calc(posl[i]+h[s,i], get_spectrum=True)
+#                out = self._get_energy(calc)
+                Es[s,i], eigs[s,i], chis[s,i] = self._get_energy(calc)
+
+        omega = 4/3.*self.C6/self.a0**2
+        omega3N = np.concatenate([np.ones(3)*i for i in omega])
+
+        # Hartree conversion was here
+        eps = (np.sqrt(eigs)/2. - omega3N[None,:,None]/2.)
+
+    # force decomposition
+
+        chij = np.sum(np.square(chis.reshape(2,3*Nat, 3*Nat, Nat, 3)), axis=4)#/chinorm[:,:,:,None]
+        phi = np.einsum('ijk,ijkl->ijl',eps,chij)
+
+        Fiaj = 0.5/hi*(phi[0,:,:] - phi[1,:,:])
+        Fiaj = Fiaj.reshape(Nat, 3, Nat)
+        F = Fiaj.swapaxes(1,2)
+        return F
+
+    def _get_forces(self, calc, forceij):
 
         if self.model == 'MBD':
-            E, F = calc.mbd_energy(self.a0, self.C6, self.Rvdw, self.beta,
+            if not forceij:
+                E, F = calc.mbd_energy(self.a0, self.C6, self.Rvdw, self.beta,
                                 force = True, variant = self.screening)
+            else:
+                F = self._atom_resolvedMBDforces()
+                #F *= -Bohr
 
         elif self.model == 'TS':
             d = 20.
