@@ -85,3 +85,4 @@ def read_optsteps(filein, Nat):
         steps.append(pos)
     return np.asarray(steps)
 
+
